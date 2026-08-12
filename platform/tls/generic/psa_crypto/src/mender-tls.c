@@ -138,8 +138,9 @@ mender_tls_init(void) {
 
     psa_status_t status;
 
-    /* Initialize PSA Crypto */
-    if (PSA_SUCCESS != (status = psa_crypto_init())) {
+    /* Initialize PSA Crypto (idempotent on platforms that init PSA at boot) */
+    status = psa_crypto_init();
+    if ((PSA_SUCCESS != status) && (PSA_ERROR_BAD_STATE != status)) {
         mender_log_error("Unable to initialize PSA Crypto (%d)", status);
         return MENDER_FAIL;
     }
@@ -289,7 +290,9 @@ mender_tls_sign_payload(char *payload, char **signature, size_t *signature_lengt
 #endif /* MBEDTLS_ERROR_C */
 
     /* Compute signature of the payload */
-    if (PSA_SUCCESS != (status = psa_sign_message(mender_tls_key_id, PSA_ALG_ECDSA(PSA_ALG_SHA_256), payload, strlen(payload), sig, sizeof(sig), &sig_len))) {
+    if (PSA_SUCCESS
+        != (status
+            = psa_sign_message(mender_tls_key_id, PSA_ALG_ECDSA(PSA_ALG_SHA_256), (const uint8_t *)payload, strlen(payload), sig, sizeof(sig), &sig_len))) {
         mender_log_error("Unable to compute signature of the hash (%d)", status);
         return MENDER_FAIL;
     }
@@ -488,9 +491,13 @@ mender_tls_generate_authentication_keys(mbedtls_svc_key_id_t *key_id, unsigned c
 static mender_err_t
 mender_tls_get_authentication_keys(mbedtls_svc_key_id_t *key_id, unsigned char **public_key, size_t *public_key_length) {
 
+    assert(NULL != key_id);
     assert(NULL != public_key);
     assert(NULL != public_key_length);
     psa_status_t status;
+
+    /* Use the configured persistent key ID */
+    *key_id = (mbedtls_svc_key_id_t)CONFIG_MENDER_PLATFORM_TLS_PSA_CRYPTO_SIGNATURE_KEY_ID;
 
     /* Export the persistent key's public key part */
     if (NULL == (*public_key = (unsigned char *)malloc(MENDER_TLS_PUBLIC_KEY_LENGTH))) {
@@ -499,6 +506,8 @@ mender_tls_get_authentication_keys(mbedtls_svc_key_id_t *key_id, unsigned char *
     }
     if (PSA_SUCCESS != (status = psa_export_public_key(*key_id, *public_key, MENDER_TLS_PUBLIC_KEY_LENGTH, public_key_length))) {
         mender_log_error("Unable to export public key (%d)", status);
+        free(*public_key);
+        *public_key = NULL;
         return MENDER_FAIL;
     }
 
