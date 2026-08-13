@@ -290,9 +290,10 @@ mender_tls_sign_payload(char *payload, char **signature, size_t *signature_lengt
 #endif /* MBEDTLS_ERROR_C */
 
     /* Compute signature of the payload */
+    /* Note: deterministic ECDSA is kept on purpose, keys already provisioned in the PSA key store are pinned to this algorithm */
     if (PSA_SUCCESS
-        != (status
-            = psa_sign_message(mender_tls_key_id, PSA_ALG_ECDSA(PSA_ALG_SHA_256), (const uint8_t *)payload, strlen(payload), sig, sizeof(sig), &sig_len))) {
+        != (status = psa_sign_message(
+                mender_tls_key_id, PSA_ALG_DETERMINISTIC_ECDSA(PSA_ALG_SHA_256), (const uint8_t *)payload, strlen(payload), sig, sizeof(sig), &sig_len))) {
         mender_log_error("Unable to compute signature of the hash (%d)", status);
         return MENDER_FAIL;
     }
@@ -390,7 +391,7 @@ mender_tls_generate_authentication_keys(
     psa_set_key_id(&key_attributes, CONFIG_MENDER_PLATFORM_TLS_PSA_CRYPTO_SIGNATURE_KEY_ID);
     psa_set_key_usage_flags(&key_attributes, PSA_KEY_USAGE_SIGN_MESSAGE | PSA_KEY_USAGE_EXPORT);
     psa_set_key_lifetime(&key_attributes, PSA_KEY_LIFETIME_VOLATILE);
-    psa_set_key_algorithm(&key_attributes, PSA_ALG_ECDSA(PSA_ALG_SHA_256));
+    psa_set_key_algorithm(&key_attributes, PSA_ALG_DETERMINISTIC_ECDSA(PSA_ALG_SHA_256));
     psa_set_key_type(&key_attributes, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
     psa_set_key_bits(&key_attributes, 256);
 
@@ -447,7 +448,7 @@ mender_tls_import_authentication_keys(mbedtls_svc_key_id_t *key_id, unsigned cha
     psa_set_key_id(&key_attributes, CONFIG_MENDER_PLATFORM_TLS_PSA_CRYPTO_SIGNATURE_KEY_ID);
     psa_set_key_usage_flags(&key_attributes, PSA_KEY_USAGE_SIGN_MESSAGE);
     psa_set_key_lifetime(&key_attributes, PSA_KEY_LIFETIME_VOLATILE);
-    psa_set_key_algorithm(&key_attributes, PSA_ALG_ECDSA(PSA_ALG_SHA_256));
+    psa_set_key_algorithm(&key_attributes, PSA_ALG_DETERMINISTIC_ECDSA(PSA_ALG_SHA_256));
     psa_set_key_type(&key_attributes, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
     psa_set_key_bits(&key_attributes, 256);
 
@@ -474,7 +475,7 @@ mender_tls_generate_authentication_keys(mbedtls_svc_key_id_t *key_id, unsigned c
     psa_set_key_id(&key_attributes, CONFIG_MENDER_PLATFORM_TLS_PSA_CRYPTO_SIGNATURE_KEY_ID);
     psa_set_key_usage_flags(&key_attributes, PSA_KEY_USAGE_SIGN_MESSAGE);
     psa_set_key_lifetime(&key_attributes, PSA_KEY_LIFETIME_PERSISTENT);
-    psa_set_key_algorithm(&key_attributes, PSA_ALG_ECDSA(PSA_ALG_SHA_256));
+    psa_set_key_algorithm(&key_attributes, PSA_ALG_DETERMINISTIC_ECDSA(PSA_ALG_SHA_256));
     psa_set_key_type(&key_attributes, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
     psa_set_key_bits(&key_attributes, 256);
 
