@@ -212,6 +212,8 @@ mender_tls_init_authentication_keys(bool recommissioning) {
         }
     }
 #else
+    /* Use the configured persistent key ID */
+    mender_tls_key_id = (mbedtls_svc_key_id_t)CONFIG_MENDER_PLATFORM_TLS_PSA_CRYPTO_SIGNATURE_KEY_ID;
     if (MENDER_OK != (ret = mender_tls_get_authentication_keys(&mender_tls_key_id, &mender_tls_public_key, &mender_tls_public_key_length))) {
 
         /* Generate authentication keys */
@@ -496,9 +498,6 @@ mender_tls_get_authentication_keys(mbedtls_svc_key_id_t *key_id, unsigned char *
     assert(NULL != public_key);
     assert(NULL != public_key_length);
     psa_status_t status;
-
-    /* Use the configured persistent key ID */
-    *key_id = (mbedtls_svc_key_id_t)CONFIG_MENDER_PLATFORM_TLS_PSA_CRYPTO_SIGNATURE_KEY_ID;
 
     /* Export the persistent key's public key part */
     if (NULL == (*public_key = (unsigned char *)malloc(MENDER_TLS_PUBLIC_KEY_LENGTH))) {
